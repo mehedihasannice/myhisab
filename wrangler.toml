@@ -1,3 +1,14 @@
-name = "my-hisab-api"
-main = "index.js"
-compatibility_date = "2026-07-01"
+name = "accounting-bot-parser"
+main = "worker/index.js"
+compatibility_date = "2026-06-01"
+
+# এগুলো secret না — Firebase Web API key ইচ্ছাকৃতভাবে public/client-side
+# হওয়ার জন্যই বানানো (real protection RTDB rules করে, key দিয়ে না)।
+# তাই এখানে plain text-এ রাখা নিরাপদ, GitHub-এ commit করাও সমস্যা না।
+[vars]
+FIREBASE_WEB_API_KEY = "AIzaSyBmWURw03HyycLImNR-erXY_AAHY9jRDP0"
+FIREBASE_DB_URL = "https://my-hisab-d6f6d-default-rtdb.asia-southeast1.firebasedatabase.app"
+ALLOWED_ORIGIN = "https://mehedihasannice.github.io"
+
+# GEMINI_API_KEY এখানে নেই — সেটা সত্যিকারের secret, wrangler secret put
+# দিয়ে আলাদাভাবে বসাতে হবে (DEPLOY_GUIDE.md-এ ধাপ আছে)।
