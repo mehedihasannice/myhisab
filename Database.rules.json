@@ -1,0 +1,68 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".validate": "newData.hasChildren(['name', 'role'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "role": {
+          ".validate": "newData.val() === 'admin' || newData.val() === 'member'"
+        }
+      }
+    },
+    "personal": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).exists()",
+        ".indexOn": ["date"],
+        "$entryId": {
+          ".validate": "newData.hasChildren(['amount', 'type', 'category', 'date'])",
+          "amount": {
+            ".validate": "newData.isNumber() && newData.val() > 0"
+          },
+          "type": {
+            ".validate": "newData.val() === 'income' || newData.val() === 'expense'"
+          },
+          "category": {
+            ".validate": "newData.isString()"
+          },
+          "date": {
+            ".validate": "newData.isString()"
+          },
+          "note": {
+            ".validate": "newData.isString()"
+          }
+        }
+      }
+    },
+    "business": {
+      ".read": "auth != null && root.child('users').child(auth.uid).exists()",
+      ".indexOn": ["date"],
+      "$entryId": {
+        ".write": "auth != null && root.child('users').child(auth.uid).exists() && (root.child('users').child(auth.uid).child('role').val() === 'admin' || !data.exists() || data.child('addedBy').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['amount', 'type', 'category', 'date', 'addedBy'])",
+        "amount": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "type": {
+          ".validate": "newData.val() === 'income' || newData.val() === 'expense'"
+        },
+        "category": {
+          ".validate": "newData.isString()"
+        },
+        "date": {
+          ".validate": "newData.isString()"
+        },
+        "addedBy": {
+          ".validate": "newData.val() === auth.uid"
+        },
+        "note": {
+          ".validate": "newData.isString()"
+        }
+      }
+    }
+  }
+}
