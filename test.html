@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Hisab - Pipeline Tester</title>
+    <!-- Firebase Compat SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; padding: 20px; margin: 0; }
+        .container { max-width: 600px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid #2d2d2d; }
+        h2 { color: #00FFFF; margin-top: 0; border-bottom: 2px solid #2d2d2d; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #aaa; }
+        input, textarea { width: 100%; padding: 10px; background: #2d2d2d; border: 1px solid #444; border-radius: 6px; color: #fff; box-sizing: border-box; }
+        input:focus, textarea:focus { border-color: #00FFFF; outline: none; }
+        button { background: linear-gradient(135deg, #00FFFF, #008b8b); color: #121212; border: none; padding: 12px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+        button:hover { opacity: 0.9; }
+        #log-console { background: #000; border: 1px solid #333; font-family: monospace; padding: 15px; border-radius: 6px; max-height: 25px0px; overflow-y: auto; white-space: pre-wrap; color: #00ff00; margin-top: 20px; }
+        .err { color: #ff3333 !important; }
+        .info { color: #00FFFF !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🛠️ My Hisab Pipeline Tester</h2>
+    
+    <div class="form-group">
+        <label>1. Cloudflare Worker URL:</label>
+        <input type="text" id="workerUrl" placeholder="https://your-worker.workers.dev">
+    </div>
+
+    <div class="form-group">
+        <label>2. Firebase Web API Key:</label>
+        <input type="text" id="apiKey" placeholder="AIzaSy...">
+    </div>
+
+    <div class="form-group">
+        <label>3. Test User Login (Email & Password):</label>
+        <input type="email" id="email" placeholder="ইউজারের ইমেইল" style="margin-bottom: 8px;">
+        <input type="password" id="password" placeholder="ইউজারের পাসওয়ার্ড">
+    </div>
+
+    <div class="form-group">
+        <label>4. Test Message for Gemini AI:</label>
+        <textarea id="testMsg" rows="2">আজকে বাজারে খরচ ৫০০ টাকা।</textarea>
+    </div>
+
+    <button onclick="startPipelineTest()">🚀 Run Full Pipeline Test</button>
+
+    <div id="log-console">টেস্ট রান করার জন্য উপরের তথ্যগুলো দিয়ে বাটনে চাপুন...</div>
+</div>
+
+<script>
+    function log(msg, type = '') {
+        const consoleEl = document.getElementById('log-console');
+        if(consoleEl.innerHTML === 'টেস্ট রান করার জন্য উপরের তথ্যগুলো দিয়ে বাটনে চাপুন...') {
+            consoleEl.innerHTML = '';
+        }
+        let colorClass = '';
+        if (type === 'error') colorClass = 'class="err"';
+        if (type === 'info') colorClass = 'class="info"';
+        consoleEl.innerHTML += `<div ${colorClass}>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    async function startPipelineTest() {
+        document.getElementById('log-console').innerHTML = '';
+        
+        const workerUrl = document.getElementById('workerUrl').value.trim();
+        const apiKey = document.getElementById('apiKey').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const testMsg = document.getElementById('testMsg').value;
+
+        if(!workerUrl || !apiKey || !email || !password) {
+            log('ভুল: দয়া করে সবগুলো ঘর ঠিকঠাক পূরণ করুন!', 'error');
+            return;
+        }
+
+        // Step 1: Firebase Initialization
+        try {
+            log('ধাপ ১: ফায়ারবেস অথেনটিকেশন ইনিশিয়ালাইজ করা হচ্ছে...', 'info');
+            const firebaseConfig = {
+                apiKey: apiKey,
+                authDomain: "my-hisab-d6f6d.firebaseapp.com"
+            };
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            log('✅ ফায়ারবেস কানেক্টেড।');
+        } catch (e) {
+            log('❌ ফায়ারবেস ইনিশিয়ালাইজেশন ব্যর্থ: ' + e.message, 'error');
+            return;
+        }
+
+        // Step 2: Firebase Login & Token Generation
+        let idToken = '';
+        try {
+            log('ধাপ ২: ইউজারের লগইন প্রসেস শুরু হচ্ছে...', 'info');
+            const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+            log(`✅ লগইন সফল! ইউজার: ${userCredential.user.email}`);
+            
+            log('ধাপ ৩: সিক্রেট Auth ID Token জেনারেট করা হচ্ছে...', 'info');
+            idToken = await userCredential.user.getIdToken(true);
+            log('✅ আইডি টোকেন তৈরি সম্পন্ন।');
+        } catch (e) {
+            log('❌ লগইন বা টোকেন জেনারেশন ব্যর্থ: ' + e.message, 'error');
+            return;
+        }
+
+        // Step 3: Call Cloudflare Worker (Auth verify -> Gemini -> DB check)
+        try {
+            log('ধাপ ৪: ক্লাউডফ্লেয়ার ওয়ার্কারে ডেটা পাঠানো হচ্ছে (সব চাবি ভেরিফাই হবে)...', 'info');
+            
+            const response = await fetch(workerUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: testMsg })
+            });
+
+            log(`যোগাযোগের রেসপন্স কোড: ${response.status}`);
+            const result = await response.json();
+
+            if (response.ok) {
+                log('🎉 অভিনন্দন ভাই! পুরো পাইপলাইন পারফেক্টলি কাজ করছে!', 'info');
+                log('🤖 জেমিনি এআই থেকে আসা রেসপন্স:\n' + JSON.stringify(result, null, 2));
+            } else {
+                log('❌ ওয়ার্কার রেসপন্স দিয়েছে কিন্তু ভেতরে সমস্যা: ' + (result.error || JSON.stringify(result)), 'error');
+            }
+        } catch (e) {
+            log('❌ ক্লাউডফ্লেয়ার ওয়ার্কারের সাথে যোগাযোগ ব্যর্থ: ' + e.message, 'error');
+        }
+    }
+</script>
+</body>
+</html>
