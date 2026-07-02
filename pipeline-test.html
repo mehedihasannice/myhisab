@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Myhisab — Pipeline Test</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 20px auto; padding: 0 16px; }
+  input, textarea, button { width: 100%; padding: 12px; margin: 6px 0; font-size: 16px; box-sizing: border-box; }
+  button { background: #2563eb; color: white; border: none; border-radius: 6px; }
+  textarea { min-height: 70px; }
+  pre { background: #f3f4f6; padding: 12px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+  #who { color: #16a34a; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h2>Myhisab — Pipeline Test</h2>
+
+<div id="login-box">
+  <input id="email" type="email" placeholder="তোমার admin email">
+  <input id="password" type="password" placeholder="Password">
+  <button id="login-btn">Login</button>
+</div>
+
+<div id="test-box" style="display:none">
+  <p id="who"></p>
+  <textarea id="sentence" placeholder="যেমন: ৫০ টাকার চা খেয়েছি"></textarea>
+  <button id="test-btn">Test Parse</button>
+  <pre id="result">Result এখানে দেখাবে...</pre>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
+
+  // ⚠️ এই তিনটা জায়গা নিজের আসল value দিয়ে বদলাও —
+  // Firebase Console → Project Settings → General → "Your apps" → Config
+  const firebaseConfig = {
+    apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "YOUR_FIREBASE_DB_URL",
+    projectId: "YOUR_PROJECT_ID"
+  };
+
+  // ⚠️ Cloudflare dashboard → Workers & Pages → accounting-bot-parser
+  // থেকে আসল .workers.dev URL বসাও
+  const WORKER_URL = "https://accounting-bot-parser.YOUR_SUBDOMAIN.workers.dev";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      document.getElementById('login-box').style.display = 'none';
+      document.getElementById('test-box').style.display = 'block';
+      document.getElementById('who').textContent = 'Logged in: ' + cred.user.email;
+    } catch (err) {
+      alert('Login failed: ' + err.message);
+    }
+  });
+
+  document.getElementById('test-btn').addEventListener('click', async () => {
+    const text = document.getElementById('sentence').value;
+    const resultEl = document.getElementById('result');
+    resultEl.textContent = 'Loading...';
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + idToken
+        },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      resultEl.textContent = 'Status: ' + res.status + '\n\n' + JSON.stringify(data, null, 2);
+    } catch (err) {
+      resultEl.textContent = 'Fetch Error: ' + err.message;
+    }
+  });
+</script>
+
+</body>
+</html>
