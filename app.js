@@ -3,7 +3,10 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
   createUserWithEmailAndPassword, signOut
 } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
-import { getDatabase, ref, get, set, remove } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js';
+import {
+  getDatabase, ref, get, set, remove, push,
+  query, orderByChild, limitToLast, onValue
+} from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBmWURw03HyycLImNR-erXY_AAHY9jRDP0",
@@ -12,12 +15,13 @@ const firebaseConfig = {
   projectId: "my-hisab-d6f6d"
 };
 
+// Worker test-এ যে URL confirm হয়েছিল সেটাই — বদলে গেলে এখানে বদলাও।
+const WORKER_URL = "https://accounting-bot-parser.mehedihasan-nice96.workers.dev";
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// একটা অংশ fail করলে যেন console না খুলেও সরাসরি স্ক্রিনে দেখা যায় —
-// mobile-এ devtools access সহজ না, তাই visible fallback জরুরি।
 function reportInitError(context, err) {
   console.error('[' + context + ']', err);
   const banner = document.createElement('div');
@@ -28,10 +32,7 @@ function reportInitError(context, err) {
   document.body.appendChild(banner);
 }
 
-// প্রতিটা feature block নিজের try-catch-এ, independent —
-// একটা অংশ fail করলে বাকিগুলো তবুও চালু থাকবে, পুরো script থেমে যাবে না।
-
-// --- Theme (day/night) ---
+// --- Theme (day/night) — সম্পূর্ণ independent, data layer-এর সাথে সম্পর্ক নেই ---
 (function initTheme() {
   try {
     const themeToggleBtn = document.getElementById('theme-toggle');
@@ -44,7 +45,7 @@ function reportInitError(context, err) {
       try {
         const stored = localStorage.getItem('myhisab-theme');
         if (stored === 'light' || stored === 'dark') return stored;
-      } catch (e) { /* fallback নিচে */ }
+      } catch (e) {}
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
@@ -54,7 +55,7 @@ function reportInitError(context, err) {
       themeColorMeta.setAttribute('content', theme === 'dark' ? '#000000' : '#FFFFFF');
       try {
         localStorage.setItem('myhisab-theme', theme);
-      } catch (e) { /* non-critical */ }
+      } catch (e) {}
     }
 
     applyTheme(getPreferredTheme());
@@ -67,35 +68,9 @@ function reportInitError(context, err) {
   }
 })();
 
-// --- Personal/Business sliding toggle ---
-(function initLedgerToggle() {
-  try {
-    const tabPersonal = document.getElementById('tab-personal');
-    const tabBusiness = document.getElementById('tab-business');
-    const segmentIndicator = document.getElementById('segment-indicator');
-    const modeLabel = document.getElementById('ledger-mode-label');
-    if (!tabPersonal || !tabBusiness || !segmentIndicator || !modeLabel) {
-      throw new Error('ledger toggle-এর element পাওয়া যায়নি');
-    }
-
-    tabPersonal.addEventListener('click', () => {
-      tabPersonal.classList.add('active');
-      tabBusiness.classList.remove('active');
-      segmentIndicator.classList.remove('business');
-      modeLabel.textContent = 'Personal';
-    });
-    tabBusiness.addEventListener('click', () => {
-      tabBusiness.classList.add('active');
-      tabPersonal.classList.remove('active');
-      segmentIndicator.classList.add('business');
-      modeLabel.textContent = 'Business';
-    });
-  } catch (err) {
-    reportInitError('ledger-toggle', err);
-  }
-})();
-
-// --- Section switching + Auth + Admin panel ---
+// --- বাকি সব: auth, admin panel, ledger toggle, chat, confirm card ---
+// এগুলো সব data layer-এর সাথে জড়িত (কোন ledger active তার উপর feed/save
+// নির্ভর করে), তাই একটা block-এই রাখা হয়েছে।
 (function initApp() {
   try {
     const authSection = document.getElementById('auth-section');
@@ -103,9 +78,27 @@ function reportInitError(context, err) {
     const appSection = document.getElementById('app-section');
     const adminPanel = document.getElementById('admin-panel');
     const pendingListEl = document.getElementById('pending-list');
+    const tabPersonal = document.getElementById('tab-personal');
+    const tabBusiness = document.getElementById('tab-business');
+    const segmentIndicator = document.getElementById('segment-indicator');
+    const chatFeed = document.getElementById('chat-feed');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const confirmOverlay = document.getElementById('confirm-overlay');
+    const confirmAmount = document.getElementById('confirm-amount');
+    const confirmCategory = document.getElementById('confirm-category');
+    const confirmDate = document.getElementById('confirm-date');
+    const confirmNote = document.getElementById('confirm-note');
+    const confirmTypeExpense = document.getElementById('confirm-type-expense');
+    const confirmTypeIncome = document.getElementById('confirm-type-income');
+    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const confirmSaveBtn = document.getElementById('confirm-save-btn');
 
-    if (!authSection || !pendingSection || !appSection || !adminPanel || !pendingListEl) {
-      throw new Error('মূল app section-গুলোর element পাওয়া যায়নি');
+    if (!authSection || !pendingSection || !appSection || !adminPanel || !pendingListEl ||
+        !tabPersonal || !tabBusiness || !segmentIndicator || !chatFeed || !chatForm ||
+        !chatInput || !confirmOverlay) {
+      throw new Error('মূল app-এর কোনো element পাওয়া যায়নি');
     }
 
     function showOnly(section) {
@@ -113,6 +106,11 @@ function reportInitError(context, err) {
       section.classList.remove('hidden');
     }
 
+    function currentLedger() {
+      return tabBusiness.classList.contains('active') ? 'business' : 'personal';
+    }
+
+    // ================= Admin: pending approvals =================
     async function loadPendingRequests() {
       pendingListEl.innerHTML = '';
       try {
@@ -127,7 +125,6 @@ function reportInitError(context, err) {
         const requests = snap.val();
         Object.keys(requests).forEach((uid) => {
           const r = requests[uid];
-
           const info = document.createElement('div');
           info.className = 'pending-item-info';
           info.appendChild(document.createTextNode(r.name));
@@ -175,6 +172,170 @@ function reportInitError(context, err) {
       }
     });
 
+    // ================= Chat feed =================
+    let unsubscribeFeed = null;
+
+    function subscribeToFeed(ledgerType, uid) {
+      if (unsubscribeFeed) {
+        unsubscribeFeed();
+        unsubscribeFeed = null;
+      }
+      const path = ledgerType === 'personal' ? `personal/${uid}` : 'business';
+      const q = query(ref(db, path), orderByChild('date'), limitToLast(50));
+      unsubscribeFeed = onValue(q, (snapshot) => {
+        renderFeed(snapshot);
+      }, (err) => {
+        chatFeed.innerHTML = '';
+        const errNote = document.createElement('div');
+        errNote.className = 'empty-note';
+        errNote.textContent = 'হিসাব load করতে সমস্যা হয়েছে।';
+        chatFeed.appendChild(errNote);
+      });
+    }
+
+    function renderFeed(snapshot) {
+      chatFeed.innerHTML = '';
+      if (!snapshot.exists()) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-note';
+        empty.textContent = 'এখনো কোনো হিসাব যোগ হয়নি। নিচে লিখে শুরু করো।';
+        chatFeed.appendChild(empty);
+        return;
+      }
+      const entries = [];
+      snapshot.forEach((child) => {
+        entries.push(child.val());
+      });
+      entries.reverse();
+      entries.forEach((entry) => chatFeed.appendChild(buildEntryEl(entry)));
+    }
+
+    function buildEntryEl(entry) {
+      const item = document.createElement('div');
+      item.className = 'entry-item ' + (entry.type === 'income' ? 'income' : 'expense');
+
+      const main = document.createElement('div');
+      main.className = 'entry-main';
+      const catEl = document.createElement('span');
+      catEl.className = 'entry-category';
+      catEl.textContent = entry.category;
+      const noteEl = document.createElement('span');
+      noteEl.className = 'entry-note';
+      noteEl.textContent = entry.note || '';
+      main.appendChild(catEl);
+      main.appendChild(noteEl);
+
+      const amountEl = document.createElement('div');
+      amountEl.className = 'entry-amount';
+      amountEl.textContent = (entry.type === 'income' ? '+' : '-') + '৳' + entry.amount;
+
+      item.appendChild(main);
+      item.appendChild(amountEl);
+      return item;
+    }
+
+    // ================= Personal/Business toggle =================
+    tabPersonal.addEventListener('click', () => {
+      if (tabPersonal.classList.contains('active')) return;
+      tabPersonal.classList.add('active');
+      tabBusiness.classList.remove('active');
+      segmentIndicator.classList.remove('business');
+      const user = auth.currentUser;
+      if (user) subscribeToFeed('personal', user.uid);
+    });
+    tabBusiness.addEventListener('click', () => {
+      if (tabBusiness.classList.contains('active')) return;
+      tabBusiness.classList.add('active');
+      tabPersonal.classList.remove('active');
+      segmentIndicator.classList.add('business');
+      const user = auth.currentUser;
+      if (user) subscribeToFeed('business', user.uid);
+    });
+
+    // ================= Send message → Worker → confirm card =================
+    let pendingLedger = null;
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      chatInput.disabled = true;
+      chatSendBtn.disabled = true;
+      chatSendBtn.textContent = '...';
+
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const res = await fetch(WORKER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'বুঝতে সমস্যা হয়েছে, আবার চেষ্টা করো।');
+          return;
+        }
+        pendingLedger = currentLedger();
+        confirmAmount.value = data.amount;
+        confirmCategory.value = data.category;
+        confirmDate.value = data.date;
+        confirmNote.value = data.note || text;
+        setConfirmType(data.type);
+        confirmOverlay.classList.remove('hidden');
+        chatInput.value = '';
+      } catch (err) {
+        alert('সমস্যা হয়েছে: ' + err.message);
+      } finally {
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatSendBtn.textContent = '➤';
+      }
+    });
+
+    function setConfirmType(type) {
+      confirmTypeExpense.classList.toggle('active', type !== 'income');
+      confirmTypeIncome.classList.toggle('active', type === 'income');
+    }
+    confirmTypeExpense.addEventListener('click', () => setConfirmType('expense'));
+    confirmTypeIncome.addEventListener('click', () => setConfirmType('income'));
+
+    confirmOverlay.addEventListener('click', (e) => {
+      if (e.target === confirmOverlay) confirmOverlay.classList.add('hidden');
+    });
+    confirmCancelBtn.addEventListener('click', () => confirmOverlay.classList.add('hidden'));
+
+    confirmSaveBtn.addEventListener('click', async () => {
+      const amount = parseFloat(confirmAmount.value);
+      const type = confirmTypeIncome.classList.contains('active') ? 'income' : 'expense';
+      const category = confirmCategory.value.trim();
+      const date = confirmDate.value;
+      const note = confirmNote.value.trim();
+
+      if (!amount || amount <= 0 || !category || !date) {
+        alert('Amount, Category, আর Date ঠিকভাবে পূরণ করো।');
+        return;
+      }
+
+      confirmSaveBtn.disabled = true;
+      try {
+        const user = auth.currentUser;
+        const entry = { amount, type, category, date, note };
+        if (pendingLedger === 'business') {
+          entry.addedBy = user.uid;
+          await set(push(ref(db, 'business')), entry);
+        } else {
+          await set(push(ref(db, `personal/${user.uid}`)), entry);
+        }
+        confirmOverlay.classList.add('hidden');
+      } catch (err) {
+        alert('সংরক্ষণ করতে সমস্যা হয়েছে: ' + err.message);
+      } finally {
+        confirmSaveBtn.disabled = false;
+      }
+    });
+
+    // ================= Auth forms =================
     function friendlyAuthError(err) {
       const map = {
         'auth/invalid-email': 'Email format ঠিক নেই।',
@@ -221,9 +382,7 @@ function reportInitError(context, err) {
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await set(ref(db, `pendingRequests/${cred.user.uid}`), {
-          name: name,
-          email: email,
-          requestedAt: Date.now()
+          name: name, email: email, requestedAt: Date.now()
         });
       } catch (err) {
         errorEl.textContent = friendlyAuthError(err);
@@ -234,8 +393,10 @@ function reportInitError(context, err) {
     document.getElementById('pending-logout-btn').addEventListener('click', () => signOut(auth));
     document.getElementById('app-logout-btn').addEventListener('click', () => signOut(auth));
 
+    // ================= Auth state observer =================
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        if (unsubscribeFeed) { unsubscribeFeed(); unsubscribeFeed = null; }
         showOnly(authSection);
         return;
       }
@@ -254,6 +415,7 @@ function reportInitError(context, err) {
           } else {
             adminPanel.classList.add('hidden');
           }
+          subscribeToFeed(currentLedger(), user.uid);
         } else {
           showOnly(pendingSection);
         }

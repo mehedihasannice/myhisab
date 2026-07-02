@@ -249,17 +249,105 @@ button:focus-visible {
 }
 .segment.active { color: var(--accent-text); }
 
-.placeholder-box {
+.chat-feed {
   width: 100%;
   max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 100px;
+  min-height: 120px;
+}
+.entry-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 40px 24px;
-  text-align: center;
-  color: var(--text-secondary);
-  line-height: 1.7;
+  border-radius: 12px;
+  padding: 12px 14px;
 }
+.entry-main { display: flex; flex-direction: column; gap: 2px; overflow: hidden; min-width: 0; }
+.entry-category { font-weight: 600; font-size: 14px; }
+.entry-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-amount { font-weight: 700; font-size: 15px; flex-shrink: 0; }
+.entry-item.income .entry-amount { color: var(--income); }
+.entry-item.expense .entry-amount { color: var(--expense); }
+
+.chat-input-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+#chat-input { flex: 1; margin: 0; }
+.send-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 18px;
+  flex-shrink: 0;
+  padding: 0;
+}
+.send-btn:disabled { opacity: 0.6; }
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+.confirm-card {
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  padding: 22px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.confirm-title { font-weight: 700; font-size: 17px; }
+.confirm-type-toggle { display: flex; gap: 8px; margin-top: 4px; }
+.type-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  font-weight: 600;
+}
+.type-btn.type-expense.active { background: var(--expense); color: #fff; border-color: var(--expense); }
+.type-btn.type-income.active { background: var(--income); color: #fff; border-color: var(--income); }
+.confirm-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-secondary {
+  flex: 1;
+  padding: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.confirm-actions .btn-primary { flex: 1; margin-top: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   body, .segment-indicator, .segment { transition: none !important; }

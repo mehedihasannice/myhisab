@@ -71,8 +71,34 @@
     <button type="button" class="segment" id="tab-business">Business</button>
   </div>
 
-  <div class="placeholder-box">
-    <span id="ledger-mode-label">Personal</span> ledger-এর chat interface শীঘ্রই আসছে এখানে।
+  <div class="chat-feed" id="chat-feed"></div>
+
+  <form id="chat-form" class="chat-input-bar">
+    <input type="text" id="chat-input" placeholder="যেমন: ৫০ টাকার চা খেয়েছি" autocomplete="off" required>
+    <button type="submit" class="send-btn" id="chat-send-btn" aria-label="Send">➤</button>
+  </form>
+
+  <div class="confirm-overlay hidden" id="confirm-overlay">
+    <div class="confirm-card">
+      <div class="confirm-title">যাচাই করো</div>
+      <label for="confirm-amount">Amount (৳)</label>
+      <input type="number" id="confirm-amount" min="0" step="0.01">
+      <label>Type</label>
+      <div class="confirm-type-toggle">
+        <button type="button" class="type-btn type-expense active" id="confirm-type-expense">Expense</button>
+        <button type="button" class="type-btn type-income" id="confirm-type-income">Income</button>
+      </div>
+      <label for="confirm-category">Category</label>
+      <input type="text" id="confirm-category">
+      <label for="confirm-date">Date</label>
+      <input type="date" id="confirm-date">
+      <label for="confirm-note">Note</label>
+      <input type="text" id="confirm-note">
+      <div class="confirm-actions">
+        <button type="button" class="btn-secondary" id="confirm-cancel-btn">বাতিল</button>
+        <button type="button" class="btn-primary" id="confirm-save-btn">সংরক্ষণ করো</button>
+      </div>
+    </div>
   </div>
 </div>
 
