@@ -5,14 +5,17 @@
 
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
+// Gemini-র responseSchema সাধারণ JSON Schema না — নিজস্ব Type enum,
+// যেখানে type-এর value uppercase লাগে (OBJECT/STRING/NUMBER)।
+// lowercase দিলে schema-টাই invalid গণ্য হয়ে 400 Bad Request আসে।
 const TRANSACTION_SCHEMA = {
-  type: "object",
+  type: "OBJECT",
   properties: {
-    amount: { type: "number" },
-    type: { type: "string", enum: ["income", "expense"] },
-    category: { type: "string" },
-    date: { type: "string" },
-    note: { type: "string" }
+    amount: { type: "NUMBER" },
+    type: { type: "STRING", enum: ["income", "expense"] },
+    category: { type: "STRING" },
+    date: { type: "STRING" },
+    note: { type: "STRING" }
   },
   required: ["amount", "type", "category", "date"]
 };
@@ -157,7 +160,16 @@ export default {
     }
 
     if (!geminiRes.ok) {
-      return jsonResponse({ error: `AI service error (${geminiRes.status})` }, 502, origin);
+      // status code-এর পাশাপাশি Gemini-র নিজের error message-ও দেখাই —
+      // future-এ সমস্যা হলে guess না করে সরাসরি exact কারণ জানা যাবে।
+      let detail = "";
+      try {
+        const errBody = await geminiRes.json();
+        detail = errBody && errBody.error && errBody.error.message ? errBody.error.message : JSON.stringify(errBody);
+      } catch (e) {
+        detail = await geminiRes.text().catch(() => "(no detail)");
+      }
+      return jsonResponse({ error: `AI service error (${geminiRes.status}): ${detail}` }, 502, origin);
     }
 
     const result = await geminiRes.json();
@@ -205,3 +217,4 @@ export default {
     );
   }
 };
+        
