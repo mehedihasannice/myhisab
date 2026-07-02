@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Myhisab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F7F0DE;
+    --card: #FBF7EA;
+    --ledger-red: #A13D3D;
+    --ink: #1F2A44;
+    --ink-soft: #5B6478;
+    --gold: #B8862E;
+    --border: #E4D9BD;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Hind Siliguri', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px;
+  }
+  .brand {
+    font-family: 'Tiro Bangla', serif;
+    font-size: 32px;
+    margin: 6px 0 2px;
+  }
+  .tagline {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin-bottom: 26px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 4px;
+    border-left: 5px solid var(--ledger-red);
+    box-shadow: 0 2px 10px rgba(31,42,68,0.08);
+    padding: 26px 22px;
+    width: 100%;
+    max-width: 380px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: 14px 0 4px;
+    font-weight: 600;
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  input:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+    border-color: var(--gold);
+  }
+  button {
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: var(--gold);
+    color: #fff;
+    margin-top: 18px;
+  }
+  .btn-primary:active { opacity: 0.85; }
+  .link-btn {
+    width: 100%;
+    background: none;
+    color: var(--ledger-red);
+    font-weight: 600;
+    text-decoration: underline;
+    margin-top: 14px;
+    padding: 6px;
+  }
+  .error-msg {
+    color: var(--ledger-red);
+    font-size: 13px;
+    margin-top: 10px;
+    display: none;
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+  .hidden { display: none !important; }
+
+  .pending-icon { font-size: 38px; text-align: center; margin-bottom: 6px; }
+  .pending-text { text-align: center; color: var(--ink-soft); line-height: 1.7; }
+  .logout-btn {
+    width: 100%;
+    background: none;
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
+    padding: 10px;
+    font-size: 13px;
+    margin-top: 20px;
+  }
+
+  .app-wrap { width: 100%; display: flex; flex-direction: column; align-items: center; }
+  .app-header {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+  .who { font-weight: 600; }
+  .role-badge { font-size: 11px; color: var(--ink-soft); display: block; }
+  .app-header .logout-btn { width: auto; padding: 8px 14px; margin-top: 0; }
+
+  .ledger-toggle {
+    display: flex;
+    width: 100%;
+    max-width: 420px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .ledger-tab {
+    flex: 1;
+    background: none;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+  }
+  .ledger-tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+
+  .placeholder-box {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border-left: 5px solid var(--ledger-red);
+    border-radius: 4px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card, .placeholder-box { transition: opacity 0.2s ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="brand">Myhisab</div>
+<div class="tagline">কথায় কথায় হিসাব</div>
+
+<!-- অবস্থা ১: login/signup -->
+<div id="auth-section" class="card">
+  <form id="login-form">
+    <label for="login-email">Email</label>
+    <input type="email" id="login-email" autocomplete="email" required>
+    <label for="login-password">Password</label>
+    <input type="password" id="login-password" autocomplete="current-password" required>
+    <div class="error-msg" id="login-error"></div>
+    <button type="submit" class="btn-primary">লগইন করো</button>
+    <button type="button" class="link-btn" id="show-signup-btn">নতুন? অ্যাকাউন্ট তৈরি করো</button>
+  </form>
+
+  <form id="signup-form" class="hidden">
+    <label for="signup-email">Email</label>
+    <input type="email" id="signup-email" autocomplete="email" required>
+    <label for="signup-password">Password</label>
+    <input type="password" id="signup-password" autocomplete="new-password" required minlength="6">
+    <div class="hint">কমপক্ষে ৬ character</div>
+    <div class="error-msg" id="signup-error"></div>
+    <button type="submit" class="btn-primary">অ্যাকাউন্ট তৈরি করো</button>
+    <button type="button" class="link-btn" id="show-login-btn">আগে থেকে account আছে? লগইন করো</button>
+  </form>
+</div>
+
+<!-- অবস্থা ২: login হয়েছে কিন্তু admin approve করেনি -->
+<div id="pending-section" class="card hidden">
+  <div class="pending-icon">⏳</div>
+  <p class="pending-text">Account তৈরি হয়ে গেছে।<br>এখন admin approve করলেই ভেতরে ঢুকতে পারবে।</p>
+  <button class="logout-btn" id="pending-logout-btn">লগআউট</button>
+</div>
+
+<!-- অবস্থা ৩: provisioned, main app shell -->
+<div id="app-section" class="app-wrap hidden">
+  <div class="app-header">
+    <div>
+      <span class="who" id="who-name"></span>
+      <span class="role-badge" id="who-role"></span>
+    </div>
+    <button class="logout-btn" id="app-logout-btn">লগআউট</button>
+  </div>
+
+  <div class="ledger-toggle">
+    <button type="button" class="ledger-tab active" id="tab-personal">Personal</button>
+    <button type="button" class="ledger-tab" id="tab-business">Business</button>
+  </div>
+
+  <div class="placeholder-box">
+    <span id="ledger-mode-label">Personal</span> ledger-এর chat interface শীঘ্রই আসছে এখানে।
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+  import {
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+    createUserWithEmailAndPassword, signOut
+  } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
+  import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js';
+
+  // ⚠️ pipeline-test.html-এ যে চারটা value বসিয়েছিলে, হুবহু সেগুলোই এখানে বসাও।
+  const firebaseConfig = {
+    apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "YOUR_FIREBASE_DB_URL",
+    projectId: "YOUR_PROJECT_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+  const authSection = document.getElementById('auth-section');
+  const pendingSection = document.getElementById('pending-section');
+  const appSection = document.getElementById('app-section');
+
+  function showOnly(section) {
+    [authSection, pendingSection, appSection].forEach(s => s.classList.add('hidden'));
+    section.classList.remove('hidden');
+  }
+
+  function friendlyAuthError(err) {
+    const map = {
+      'auth/invalid-email': 'Email format ঠিক নেই।',
+      'auth/user-not-found': 'এই email দিয়ে কোনো account নেই।',
+      'auth/wrong-password': 'Password ভুল হয়েছে।',
+      'auth/invalid-credential': 'Email অথবা password ভুল।',
+      'auth/email-already-in-use': 'এই email দিয়ে আগেই account আছে, login করো।',
+      'auth/weak-password': 'Password কমপক্ষে ৬ character হতে হবে।',
+      'auth/too-many-requests': 'অনেকবার চেষ্টা হয়েছে, একটু পর আবার চেষ্টা করো।'
+    };
+    return map[err.code] || ('সমস্যা হয়েছে: ' + err.message);
+  }
+
+  document.getElementById('show-signup-btn').addEventListener('click', () => {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('signup-form').classList.remove('hidden');
+  });
+  document.getElementById('show-login-btn').addEventListener('click', () => {
+    document.getElementById('signup-form').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+  });
+
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errorEl = document.getElementById('login-error');
+    errorEl.style.display = 'none';
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // সফল হলে onAuthStateChanged নিজেই screen বদলে দেবে, এখানে কিছু করার দরকার নেই।
+    } catch (err) {
+      errorEl.textContent = friendlyAuthError(err);
+      errorEl.style.display = 'block';
+    }
+  });
+
+  document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    const errorEl = document.getElementById('signup-error');
+    errorEl.style.display = 'none';
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      // নতুন account RTDB-তে provisioned না থাকায় onAuthStateChanged
+      // এটাকে pending screen-এ পাঠাবে — এটাই কাম্য আচরণ।
+    } catch (err) {
+      errorEl.textContent = friendlyAuthError(err);
+      errorEl.style.display = 'block';
+    }
+  });
+
+  document.getElementById('pending-logout-btn').addEventListener('click', () => signOut(auth));
+  document.getElementById('app-logout-btn').addEventListener('click', () => signOut(auth));
+
+  const tabPersonal = document.getElementById('tab-personal');
+  const tabBusiness = document.getElementById('tab-business');
+  const modeLabel = document.getElementById('ledger-mode-label');
+
+  tabPersonal.addEventListener('click', () => {
+    tabPersonal.classList.add('active');
+    tabBusiness.classList.remove('active');
+    modeLabel.textContent = 'Personal';
+  });
+  tabBusiness.addEventListener('click', () => {
+    tabBusiness.classList.add('active');
+    tabPersonal.classList.remove('active');
+    modeLabel.textContent = 'Business';
+  });
+
+  // পুরো app-টা এই একটা observer দিয়ে চালিত — login/logout/page-load
+  // সব ক্ষেত্রেই এটাই ঠিক করে দেয় কোন screen দেখানো হবে।
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      showOnly(authSection);
+      return;
+    }
+    try {
+      // এখানে user-এর নিজের idToken auto ব্যবহার হচ্ছে (SDK নিজেই সামলায়) —
+      // Worker-এ যেমন REST দিয়ে করেছিলাম, এখানে SDK দিয়ে একই rule মেনে হচ্ছে।
+      const snap = await get(ref(db, `users/${user.uid}`));
+      if (snap.exists()) {
+        const data = snap.val();
+        document.getElementById('who-name').textContent = data.name || user.email;
+        document.getElementById('who-role').textContent = data.role === 'admin' ? 'Admin' : 'Member';
+        showOnly(appSection);
+      } else {
+        showOnly(pendingSection);
+      }
+    } catch (err) {
+      // RTDB read fail করলে ভুল করে app খুলে দেওয়ার চেয়ে pending দেখানো নিরাপদ।
+      showOnly(pendingSection);
+    }
+  });
+</script>
+
+</body>
+</html>
