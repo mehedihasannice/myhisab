@@ -5,6 +5,14 @@
 
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
+// Fixed category list — frontend-এ এর প্রতিটার একটা icon map করা আছে।
+// এখানে বদলালে public/app.js-এর CATEGORY_ICONS-ও একই সাথে বদলাতে হবে,
+// দুটো জায়গায় ঠিক এক তালিকা না থাকলে অচেনা category-র icon না-ও মিলতে পারে।
+const CATEGORIES = [
+  "খাবার", "বাজার", "যাতায়াত", "বাড়িভাড়া", "বিল",
+  "চিকিৎসা", "শিক্ষা", "কেনাকাটা", "বিনোদন", "বেতন", "ব্যবসা", "বিবিধ"
+];
+
 // Gemini-র responseSchema সাধারণ JSON Schema না — নিজস্ব Type enum,
 // যেখানে type-এর value uppercase লাগে (OBJECT/STRING/NUMBER)।
 // lowercase দিলে schema-টাই invalid গণ্য হয়ে 400 Bad Request আসে।
@@ -13,7 +21,7 @@ const TRANSACTION_SCHEMA = {
   properties: {
     amount: { type: "NUMBER" },
     type: { type: "STRING", enum: ["income", "expense"] },
-    category: { type: "STRING" },
+    category: { type: "STRING", enum: CATEGORIES },
     date: { type: "STRING" },
     note: { type: "STRING" }
   },
@@ -32,7 +40,8 @@ Sentence: "${text}"
 নিয়ম:
 - amount অবশ্যই একটা positive number হবে, কোনো currency symbol ছাড়া।
 - type হবে "income" (টাকা এসেছে/পাওয়া গেছে) অথবা "expense" (টাকা খরচ/দেওয়া হয়েছে)।
-- category সংক্ষেপে বাংলায় লিখো, sentence অনুযায়ী মানানসই কিছু (যেমন: খাবার, যাতায়াত, বাজার, বাড়িভাড়া, বেতন, বিবিধ)।
+- category অবশ্যই এই তালিকা থেকেই বেছে নিতে হবে, তালিকার বাইরে নতুন কিছু বানানো যাবে না: ${CATEGORIES.join(", ")}
+  sentence-এর সাথে সবচেয়ে মানানসই একটা বেছে নাও। নিশ্চিত না হলে "বিবিধ" ব্যবহার করো।
 - date হবে YYYY-MM-DD ফরম্যাটে।
 - note-এ মূল sentence-টার সংক্ষিপ্ত সারমর্ম রাখো।`;
 }
@@ -197,7 +206,7 @@ export default {
     // AI-এর output অন্ধভাবে বিশ্বাস করা হয় না।
     const validType = parsed.type === "income" || parsed.type === "expense";
     const validAmount = typeof parsed.amount === "number" && parsed.amount > 0;
-    const validCategory = typeof parsed.category === "string" && parsed.category.trim().length > 0;
+    const validCategory = CATEGORIES.includes(parsed.category);
     const validDate = typeof parsed.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date);
 
     if (!validType || !validAmount || !validCategory || !validDate) {
@@ -217,4 +226,3 @@ export default {
     );
   }
 };
-        
